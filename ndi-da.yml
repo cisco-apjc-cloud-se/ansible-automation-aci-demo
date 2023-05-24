@@ -1,0 +1,10 @@
+---
+- name: Initiate Nexus Dashboard Insights - Post-Change Delta Analysis
+  hosts: nd
+  gather_facts: false
+  vars:
+    insights_group: MEL-SE-LAB-ACI
+    job_name: ANSIBLE-CICD-POST-DA
+    site_name: MEL-SE-LAB-ACI
+  roles:
+    - role: ndi-da

@@ -1,0 +1,12 @@
+apic:
+  hosts:
+    apic1.mel.ciscolabs.com:
+      ansibile_host: apic1.mel.ciscolabs.com
+      ansible_connection: local
+      ansible_user: admin
+      ansible_password: {{ADD YOUR VAULT ENCRYPTED PASSWORD HERE}}
+  # vars:
+  #   ansible_connection: ansible.netcommon.httpapi
+  #   ansible_httpapi_validate_certs: false
+  #   ansible_httpapi_use_ssl: true
+  #   # ansible_httpapi_use_proxy: True

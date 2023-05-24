@@ -1,0 +1,12 @@
+nd:
+  hosts:
+    {{ADD YOUR ND HOST HERE}}:
+      # ansbile_host: 10.67.29.144 # nd-n1.mel.ciscolabs.com
+      ansible_user: admin
+      ansible_ssh_pass: {{ ADD YOUR VAULT ENCRYPTED PASSWORD HERE}}
+  vars:
+    ansible_connection: ansible.netcommon.httpapi
+    ansible_network_os: cisco.nd.nd
+    ansible_httpapi_validate_certs: false
+    ansible_httpapi_use_ssl: true
+    # ansible_httpapi_use_proxy: True

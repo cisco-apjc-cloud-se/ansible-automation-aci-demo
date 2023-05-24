@@ -1,0 +1,371 @@
+tenants:
+### Logical Tenants
+  - name: Ansible-Demo-Internal
+    description: Demo tenant created by Ansible IaC
+    state: present
+    applications:
+    ### Application Configuration
+    - name: OpenCart 
+      description:  Example 2-Tier OpenCart Demo Application
+      state: present
+      accessgroups:
+        - name: App
+          description: OpenCart Application VMs
+          state: present
+          bridgedomain: AN-Production
+          contracts:
+            provided:
+              - name: OC-Client-to-App
+                state: present
+              - name: Admin-to-Servers
+                state: present
+            consumed:
+              - name: OC-App-to-DB
+                state: present
+              - name: Internet-via-Proxy
+                state: present
+              - name: Internal-DNS
+                state: present
+          domains:
+          ### Access Domain(s)
+            - name: DVS-VMM # Dynamic VMware vSphere Domain
+              type: vmm # l2dom, phys, vmm
+              provider: vmware
+              state: present
+            # - name: BM-SERVERS # Bare Metal Servers
+            #   type: physical
+          # ports:
+          ### Access Port(s)
+            # - type: switch_port # switch_port, port_channel, vpc
+            #   state: present
+            #   switch: 101 # Needs list [..] for vpc port types
+            #   interface: 1/30
+            #   mode: trunk # 802.1p, access, native, regular, trunk, untagged
+            #   vlan: 400
+        - name: DB
+          description: OpenCart Database VMs
+          state: present
+          bridgedomain: AN-Production
+          contracts:
+            provided:
+              - name: OC-App-to-DB
+                state: present
+              - name: Admin-to-Servers
+                state: present
+            consumed:
+              - name: Internet-via-Proxy
+                state: present
+              - name: Internal-DNS
+                state: present
+          domains:
+          ### Access Domain(s)
+            - name: DVS-VMM # Dynamic VMware vSphere Domain
+              type: vmm # l2dom, phys, vmm
+              provider: vmware
+              state: present
+    networking:
+    ### Networking Configuration
+      bridgedomains:
+      ### Layer 2 Segments 
+        - name: AN-Production
+          description: Production Servers
+          state: present
+          vrf: Internal
+          l3outs:
+            - name: core
+              state: present
+          subnets:
+          ### Distributed Anycast Gateway
+            - gatewayip: {{ADD YOUR GATEWAY IP HERE}}
+              masklength: 29
+              state: present
+              primary: true
+              scope: # "private", "public", "shared"
+                - public 
+        # - name: AN-Development
+        #   description: Development Servers
+        #   state: present       
+        #   vrf: Internal
+        #   l3outs:
+        #     - name: core
+        #       state: present
+        #   subnets:
+        #   ### Distributed Anycast Gateway
+        #     - gatewayip: {{ADD YOUR GATEWAY IP HERE}}
+        #       masklength: 29
+        #       state: present
+        #       primary: true
+        #       scope: # "private" | "public", "shared"  ## Needs to be private if not in actual use
+        #         - private 
+      vrfs:
+      ### Layer 3 Segments
+        - name: Internal
+          description: Demo Internal VRF created by Ansible
+          state: present
+          l3outs:
+            - name: core
+              description: Routed OSPF uplink to core network
+              state: present
+              domain: LAB-N9348
+              protocol: bgp
+              node_profiles:
+                - name: Uplink-Node-Profile
+                  description: Node profile for uplink to core
+                  state: present
+                  nodes:
+                    - id: 101
+                      router_id: 101.1.1.1
+                      state: present
+                    - id: 102
+                      router_id: 102.1.1.1
+                      state: present
+                  interface_profiles:
+                    - name: Uplink-Interface-Profile
+                      # description: Interface profile for uplink to core
+                      state: present
+                      interfaces:
+                        - type: ext-svi # "l3-port", "sub-interface", "ext-svi"
+                          state: present
+                          node_id: 102 # 101-102 for vPCs
+                          vlan: 477                          
+                          path: eth1/1 # ethX/X or name of PC/vPC interface policy group
+                          address: {{ADD YOUR LOCAL SWITCH IP/MASK HERE}}
+                          bgp_peers:
+                            - address: {{ADD YOUR BGP NEIGBOUR HERE}}
+                              asn: 65004
+                              state: present
+              external_access_groups:
+                - name: Allow-BGP-Advertisement
+                  description: External Route Control Network for BGP Allow-BGP-Advertisement
+                  state: present
+                  networks:
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:
+                        - export-rtctrl
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:
+                        - export-rtctrl
+                - name: Lab-Proxy
+                  description: Lab Proxy Server
+                  state: present
+                  networks:
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: absent
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: absent
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: absent
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: absent
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                  contracts:
+                    provided:
+                      - name: Internet-via-Proxy
+                        state: present
+                - name: Internal-DNS-Servers
+                  description: Internal DNS Servers
+                  state: present
+                  networks:
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                  contracts:
+                    provided:
+                      - name: Internal-DNS
+                        state: present
+                - name: RFC1918
+                  description: External RFC1918 Addressed Clients
+                  state: present
+                  networks:
+                    - network: 10.0.0.0/8
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: 172.16.0.0/12
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                    - network: 192.168.0.0/16
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                  contracts:
+                    # provided:
+                    #   - name: Internet-via-Proxy
+                    #     state: absent
+                    #   - name: Internal-DNS
+                    #     state: absent
+                    consumed:
+                      - name: OC-Client-to-App
+                        state: present
+                - name: Administrators
+                  ## Note: Must be built after RFC1918 as called as contract master
+                  description: Internal server administrator group
+                  state: present
+                  networks:
+                    - network: {{ADD YOUR SERVER IP/MASK HERE}}
+                      state: present
+                      scope:  # "export-rtctrl", "import-rtctrl", "import-security", "shared-rtctrl", "shared-security", 
+                        - import-security
+                  contracts:
+                    masters:
+                      - name: RFC1918
+                        l3out: core
+                        state: present
+                    consumed:
+                      - name: Admin-to-Servers
+                        state: present
+    security:
+    ### L3-L4 Security Configuration
+      filters:
+      ### Protocol Groups
+        - name: icmp
+          state: present
+          entries:
+            - name: icmp
+              state: present
+              ethtype: ip
+              protocol: icmp
+        - name: proxy
+          state: absent
+          entries:
+            - name: http-8080
+              state: present
+              ethtype: ip
+              protocol: tcp
+              dest_port:
+                from: 8080
+                to: 8080
+        - name: dns
+          state: present
+          entries:
+            - name: dns-udp-53
+              state: present
+              ethtype: ip
+              protocol: udp
+              dest_port:
+                from: 53
+                to: 53
+        - name: web
+          state: present
+          entries:
+            - name: http-80
+              state: present
+              ethtype: ip
+              protocol: tcp
+              dest_port:
+                from: 80
+                to: 80
+            - name: https-443
+              state: present
+              ethtype: ip
+              protocol: tcp
+              dest_port:
+                from: 443
+                to: 443
+        - name: mysql
+          state: present
+          entries:
+            - name: mysql-3306
+              state: present
+              ethtype: ip
+              protocol: tcp
+              dest_port:
+                from: 3306
+                to: 3306
+        - name: ssh
+          state: present
+          entries:
+            - name: ssh-22
+              state: present
+              ethtype: ip
+              protocol: tcp
+              dest_port:
+                from: 22
+                to: 22
+      contracts:
+        standard:
+        ### Access Control Lists (ACLs)
+          - name: OC-Client-to-App
+            description: Allow clients to reach OpenCart web interface
+            state: present
+            subjects:
+              - name: default
+                state: present
+                filters:
+                - name: web
+                  state: present
+                - name: icmp
+                  state: present
+          - name: OC-App-to-DB
+            description: Allow OpenCart App server(s) to reach Database server(s)
+            state: present
+            subjects:
+              - name: default
+                state: present
+                filters:
+                - name: mysql
+                  state: present
+                - name: icmp
+                  state: present
+          - name: Internet-via-Proxy
+            description: Allow outbound internet access via proxy
+            state: present
+            subjects:
+              - name: default
+                state: present
+                filters:
+                  - name: proxy
+                    state: absent
+                  - name: web
+                    state: present
+                  - name: icmp
+                    state: present
+          - name: Internal-DNS
+            description: Allow DNS service access
+            state: present
+            subjects:
+              - name: default
+                state: present
+                filters:
+                  - name: dns
+                    state: present
+                  - name: icmp
+                    state: present
+          - name: Admin-to-Servers
+            description: Allow SSH access to servers
+            state: present
+            subjects:
+              - name: default
+                state: present
+                filters:
+                  - name: ssh
+                    state: present
+  # - name: Ansible-Demo-DMZ
+  #   description: Demo tenant created by Ansible IaC added
+  #   state: present
+  # #   applications:
+  # #   networking:
+  # #   security:

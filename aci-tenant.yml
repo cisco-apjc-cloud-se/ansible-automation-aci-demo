@@ -1,0 +1,80 @@
+---
+- name: Mark Start Time
+  ### ONLY REQUIRED WHEN RUNNING LOCALLY - IGNORE FOR AAP/AWX ###
+  gather_facts: true
+  hosts: localhost
+  tasks:
+    - name: Copy Start Time to File
+      ansible.builtin.copy:
+        content: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+        mode: '0644'
+        dest: "start_time.txt"
+      when: ansible_check_mode is false and awx_job_id is not defined
+- name: Set Start Time Variable
+  ### ONLY REQUIRED WHEN RUNNING LOCALLY - IGNORE FOR AAP/AWX ###
+  gather_facts: false
+  hosts: localhost
+  tasks:
+    - name: Set start_time variable
+      ansible.builtin.set_stats:
+        data:
+          start_time: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+      when: ansible_check_mode is false and awx_job_id is defined
+- name: Execute ACI Tenant Role
+  hosts: apic
+  # connection: local
+  gather_facts: false
+  vars_files:
+    - encrypted_password.yml
+    - intent.yml
+  vars:
+    output_path: config.json
+    output_level: debug
+    timeout: 120
+    validate_certs: false
+  roles:
+    - role: aci-tenant
+- name: Mark Stop Time
+  ### ONLY REQUIRED WHEN RUNNING LOCALLY - IGNORE FOR AAP/AWX ###
+  gather_facts: true
+  hosts: localhost
+  tasks:
+    - name: Copy Start Time to File
+      ansible.builtin.copy:
+        content: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+        mode: '0644'
+        dest: "stop_time.txt"
+      when: ansible_check_mode is false and awx_job_id is not defined
+- name: Set Stop Time Variable
+  ### ONLY REQUIRED WHEN RUNNING LOCALLY - IGNORE FOR AAP/AWX ###
+  gather_facts: false
+  hosts: localhost
+  tasks:
+    - name: Set stop_time variable
+      ansible.builtin.set_stats:
+        data:
+          stop_time: "{{ lookup('pipe', 'date +%Y-%m-%dT%H:%M:%S') }}"
+      when: ansible_check_mode is false and awx_job_id is defined
+- name: Check Output File
+  gather_facts: false
+  hosts: localhost
+  vars:
+    output_path: config.json
+  tasks:
+    - name: Read Output file
+      ansible.builtin.file:
+        path: "{{ output_path }}"
+      register: file_stat
+      when: ansible_check_mode is true
+    - name: Display Output file details
+      ansible.builtin.debug:
+        msg:
+          - "### OUTPUT FILE ###"
+          - "{{ file_stat }}"
+      when: ansible_check_mode is true
+    - name: Set PCV Output variable
+      ### ONLY REQUIRED WHEN RUNNING FROM AAP/AWX ###
+      ansible.builtin.set_stats:
+        data:
+          pcv_output: "{{ lookup('ansible.builtin.file', output_path) }}"
+      when: ansible_check_mode is true and awx_job_id is defined
